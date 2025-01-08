@@ -20,3 +20,5 @@ Code Quality Assurance: Helps QA engineers and developers ensure their code beha
 Language Detection: Aids in detecting and confirming the programming language of unknown code snippets.
 
 Scalable and Modular Design: The OOP approach ensures that this app can be extended with additional features such as saving results, supporting more programming languages, or integrating with other tools.
+
+In order to run please get you SAP AI core configuration into the .env file. I have created this in SAP BTP.
