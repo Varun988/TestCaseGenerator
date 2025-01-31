@@ -1,9 +1,11 @@
 from appconfig import AppConfig
 from azureai import AzureAI
 import streamlit as st
+
+# Initialize configuration and Azure AI client
 config = AppConfig()
 azure_ai = AzureAI(config)
-llm=azure_ai.get_client()
+llm = azure_ai.get_client()
 
 class LanguageValidator:
     """
@@ -23,7 +25,6 @@ class LanguageValidator:
         )
         try:
             response = llm.invoke(prompt)
-
             detected_language = response.content.strip().lower()
             return detected_language
         except Exception as e:
@@ -53,9 +54,12 @@ class TestCaseGenerator:
         Uses OpenAI to generate test cases for the given code.
         """
         prompt = (
-            f"Generate detailed test cases for the following {language} code:\n\n"
-            f"{code}\n\n"
-            "Provide the test cases in a clear and concise format."
+
+                f"Generate as many detailed test cases as possible for the following {language} code, up to a maximum of 20 test cases:\n\n"
+                f"{code}\n\n"
+                "Provide the test cases in a clear and concise format."
+
+
         )
         try:
             response = llm.invoke(prompt)
@@ -63,81 +67,15 @@ class TestCaseGenerator:
         except Exception as e:
             raise Exception(f"Error during test case generation: {e}")
 
-#Uncomment this code for pythin input test
-# class TestCaseApp:
-#     """
-#     Manages the interaction between the user and the application.
-#     """
-#     def __init__(self, language_validator, test_case_generator):
-#         self.language_validator = language_validator
-#         self.test_case_generator = test_case_generator
 
-#     def run(self):
-#         """
-#         Main loop of the application.
-#         """
-#         print("Welcome to the Test Case Generator!")
-#         print("Provide the details below to generate test cases for your code.\n")
-
-#         # Collect inputs from the user
-#         programming_language = input("Enter the programming language (e.g., Python, JavaScript): ").strip()
-#         if not programming_language:
-#             print("Programming language cannot be empty.")
-#             return
-
-#         print("\nEnter the code for which you want test cases (press Enter twice to finish):")
-#         code_lines = []
-#         while True:
-#             line = input()
-#             if line == "":
-#                 break
-#             code_lines.append(line)
-#         code_input = "\n".join(code_lines)
-
-#         if not code_input:
-#             print("Code cannot be empty.")
-#             return
-
-#         # Validate programming language
-#         try:
-#             print("\nValidating programming language...")
-#             detected_language = self.language_validator.validate_language(programming_language, code_input)
-#             print(f"Detected programming language: {detected_language.capitalize()}")
-#         except ValueError as ve:
-#             print(f"Error: {ve}")
-#             return
-#         except Exception as e:
-#             print(f"Unexpected error during validation: {e}")
-#             return
-
-#         # Generate test cases
-#         try:
-#             print("\nGenerating test cases...")
-#             test_cases = self.test_case_generator.generate_test_cases(programming_language, code_input)
-#             print("\nGenerated Test Cases:")
-#             print("-" * 30)
-#             print(test_cases)
-#         except Exception as e:
-#             print(f"Error during test case generation: {e}")
-
-
-# if __name__ == "__main__":
-#     # Create instances of the classes
-#     language_validator = LanguageValidator(openai_engine="YOUR_DEPLOYMENT_NAME")
-#     test_case_generator = TestCaseGenerator(openai_engine="YOUR_DEPLOYMENT_NAME")
-
-#     # Run the application
-#     app = TestCaseApp(language_validator, test_case_generator)
-#     app.run()
-
-#Streamlit
 class TestCaseApp:
     """
     Manages the interaction between the user and the application via Streamlit.
     """
-    def __init__(self, language_validator, test_case_generator):
+    def __init__(self, language_validator, test_case_generator, max_test_cases=10):
         self.language_validator = language_validator
         self.test_case_generator = test_case_generator
+        self.max_test_cases = max_test_cases  # Maximum number of test cases the LLM can generate
 
     def run(self):
         """
@@ -149,6 +87,11 @@ class TestCaseApp:
         # Collect inputs from the user
         programming_language = st.text_input("Programming Language (e.g., Python, JavaScript)").strip()
         code_input = st.text_area("Code (paste your code here)")
+
+        # Input for the number of test cases the user wants
+        num_test_cases = st.number_input(
+            "Number of Test Cases you want", min_value=1, max_value=self.max_test_cases, value=3, step=1
+        )
 
         if st.button("Generate Test Cases"):
             if not programming_language:
@@ -173,9 +116,18 @@ class TestCaseApp:
             # Generate test cases
             try:
                 with st.spinner("Generating test cases..."):
+                    # First, check if the requested number of test cases exceeds the max limit
+                    if num_test_cases > self.max_test_cases:
+                        st.error(f"Only {self.max_test_cases} test cases can be generated.")
+                        return
+                    
                     test_cases = self.test_case_generator.generate_test_cases(programming_language, code_input)
-                st.subheader("Generated Test Cases")
-                st.code(test_cases, language=programming_language)
+                    
+                    # Split the test cases and return only the requested number
+                    test_cases_list = test_cases.split("\n")[:num_test_cases]
+                    st.subheader("Generated Test Cases")
+                    st.code("\n".join(test_cases_list), language=programming_language)
+                    
             except Exception as e:
                 st.error(f"Error during test case generation: {e}")
 
